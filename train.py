@@ -5,7 +5,7 @@ from cifar10_input import load_cifar10
 import models
 
 
-def train(dataset_paths, batch_size, num_steps, output_dir):
+def train(dataset_paths, batch_size, num_steps, output_dir, save_per_steps):
     dataset = load_cifar10(dataset_paths, batch_size)
 
     with tf.Graph().as_default():
@@ -64,12 +64,15 @@ def train(dataset_paths, batch_size, num_steps, output_dir):
         summaries_writer = tf.summary.FileWriter(
             os.path.join(output_dir, 'logs/'))
 
+        saver = tf.train.Saver(max_to_keep=None, save_relative_paths=True)
+        saver_path = os.path.join(output_dir, 'checkpoints', 'step')
+
         init_op = tf.global_variables_initializer()
 
         with tf.Session() as sess:
             sess.run(init_op)
 
-            for step in range(num_steps):
+            for step in range(1, num_steps+1):
                 print('step', step)
                 noise_value = np.random.rand(batch_size, 100)
                 _, summaries_value = sess.run(
@@ -84,11 +87,17 @@ def train(dataset_paths, batch_size, num_steps, output_dir):
                     feed_dict={noise: noise_value, images: images_value})
                 summaries_writer.add_summary(summaries_value, step)
 
+                if step % save_per_steps == 0:
+                    saver.save(
+                        sess=sess,
+                        save_path=saver_path,
+                        global_step=step)
+
 
 def main():
     dataset_paths = ['cifar-10-batches-bin/data_batch_%d.bin' % i
                      for i in range(1, 6)]
-    train(dataset_paths, 16, 50, 'output')
+    train(dataset_paths, 16, 50, 'output', 10)
 
 if __name__ == '__main__':
     main()
