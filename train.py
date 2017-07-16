@@ -1,10 +1,11 @@
+import os
 import tensorflow as tf
 import numpy as np
 from cifar10_input import load_cifar10
 import models
 
 
-def train(dataset_paths, batch_size, num_steps):
+def train(dataset_paths, batch_size, num_steps, output_dir):
     dataset = load_cifar10(dataset_paths, batch_size)
 
     with tf.Graph().as_default():
@@ -56,6 +57,13 @@ def train(dataset_paths, batch_size, num_steps):
             var_list=discriminator_trainable,
             name='discriminator_train_op')
 
+        generator_summaries = tf.summary.scalar(
+            'generator_loss', generator_loss)
+        discriminator_summaries = tf.summary.scalar(
+            'discriminator_loss', discriminator_loss)
+        summaries_writer = tf.summary.FileWriter(
+            os.path.join(output_dir, 'logs/'))
+
         init_op = tf.global_variables_initializer()
 
         with tf.Session() as sess:
@@ -64,23 +72,23 @@ def train(dataset_paths, batch_size, num_steps):
             for step in range(num_steps):
                 print('step', step)
                 noise_value = np.random.rand(batch_size, 100)
-                _, loss = sess.run(
-                    fetches=[generator_train_op, generator_loss],
+                _, summaries_value = sess.run(
+                    fetches=[generator_train_op, generator_summaries],
                     feed_dict={noise: noise_value})
-                print('generator loss:', loss)
+                summaries_writer.add_summary(summaries_value, step)
 
                 noise_value = np.random.rand(batch_size, 100)
                 images_value = next(dataset)
-                _, loss = sess.run(
-                    fetches=[discriminator_train_op, discriminator_loss],
+                _, summaries_value = sess.run(
+                    fetches=[discriminator_train_op, discriminator_summaries],
                     feed_dict={noise: noise_value, images: images_value})
-                print('discriminator loss', loss)
+                summaries_writer.add_summary(summaries_value, step)
 
 
 def main():
     dataset_paths = ['cifar-10-batches-bin/data_batch_%d.bin' % i
                      for i in range(1, 6)]
-    train(dataset_paths, 16, 10)
+    train(dataset_paths, 16, 50, 'output')
 
 if __name__ == '__main__':
     main()
